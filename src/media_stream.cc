@@ -471,6 +471,31 @@ rtp_error_t uvgrtp::media_stream::add_srtp_ctx(uint8_t *key, uint8_t *salt)
     return start_components();
 }
 
+rtp_error_t uvgrtp::media_stream::rekey_switch_receiving_srtp_ctx(uint8_t* key, uint8_t* salt) {
+    if (!(rce_flags_ & RCE_RECEIVE_ONLY)) {
+        UVG_LOG_ERROR("rekey_switch_receiving_srtp_ctx called on non-receiver SRTP context.");
+        return RTP_GENERIC_ERROR;
+    }
+    if (!(rce_flags_ & RCE_SRTP_AUTHENTICATE_RTP)) {
+        UVG_LOG_ERROR("rekeying only supported with RCE_SRTP_AUTHENTICATE_RTP flag set.");
+        return RTP_GENERIC_ERROR;
+    }
+    return srtp_->rekey_add_remote_srtp_ctx(key, salt);
+}
+
+void uvgrtp::media_stream::rekey_disable_old_srtp_ctx() {
+    srtp_->rekey_disable_old_remote_srtp_ctx();
+}
+
+rtp_error_t uvgrtp::media_stream::rekey_replace_sending_srtp_ctx(uint8_t* key, uint8_t* salt) {
+    if (!(rce_flags_ & RCE_SRTP_AUTHENTICATE_RTP)) {
+        UVG_LOG_ERROR("rekeying only supported with RCE_SRTP_AUTHENTICATE_RTP flag set.");
+        return RTP_GENERIC_ERROR;
+    }
+    srtp_->rekey_replace_local_srtp_ctx(key, salt);
+    return RTP_OK;
+}
+
 rtp_error_t uvgrtp::media_stream::start_components()
 {
     if (create_media(fmt_) != RTP_OK)

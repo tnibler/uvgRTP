@@ -19,6 +19,10 @@ namespace uvgrtp {
             /* Encrypt the payload of an RTP packet and add authentication tag (if enabled) */
             static rtp_error_t send_packet_handler(void *arg, buf_vec& buffers);
 
+            rtp_error_t rekey_add_remote_srtp_ctx(uint8_t* key, uint8_t* salt);
+            rtp_error_t rekey_disable_old_remote_srtp_ctx();
+            rtp_error_t rekey_replace_local_srtp_ctx(uint8_t* key, uint8_t* salt);
+
         private:
             /* TODO:  */
             rtp_error_t encrypt(uint32_t ssrc, uint16_t seq, uint8_t* buffer, size_t len);

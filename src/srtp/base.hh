@@ -12,6 +12,7 @@
 #endif
 
 #include <cstdint>
+#include <array>
 #include <unordered_set>
 #include <vector>
 #include <memory>
@@ -96,6 +97,7 @@ namespace uvgrtp {
     } srtp_ctx_t;
 
     class base_srtp {
+
         public:
             base_srtp();
             virtual ~base_srtp();
@@ -116,11 +118,7 @@ namespace uvgrtp {
 
             /* Get reference to the SRTP context (including session keys) */
             std::shared_ptr<srtp_ctx_t> get_local_ctx();
-            std::shared_ptr<srtp_ctx_t> get_remote_ctx();
-
-            /* Returns true if the packet having this HMAC digest is replayed
-             * Returns false if replay protection has not been enabled */
-            bool is_replayed_packet(uint8_t *digest);
+            std::array<srtp_ctx_t, 2>& get_remote_ctxs();
 
             uint32_t get_key_size(int rce_flags) const;
 
@@ -132,26 +130,48 @@ namespace uvgrtp {
              * Return RTP_INVALID_VALUE if one of the parameters is invalid */
             rtp_error_t create_iv(uint8_t *out, uint32_t ssrc, uint64_t index, uint8_t *salt);
 
+            enum rekeying_state {
+                OnlyZero,
+                OnlyOne,
+                SwitchingToZero,
+                SwitchingToOne,
+            };
+
+            enum which_srtp_ctx {
+                Zero, 
+                One
+            };
+
+            /* Returns true if the packet having this HMAC digest is replayed
+             * Returns false if replay protection has not been enabled */
+            bool is_replayed_packet(uint8_t *digest, which_srtp_ctx which_srtp);
+
+            rekeying_state rekeying_state;
+
             /* SRTP context containing all session information and keys */
             std::shared_ptr<srtp_ctx_t> local_srtp_ctx_;  // for encryption
-            std::shared_ptr<srtp_ctx_t> remote_srtp_ctx_; // for decryption
+            std::array<srtp_ctx_t, 2> remote_srtp_ctxs_; // for decryption
 
             /* If NULL cipher is enabled, it means that RTP packets are not
              * encrypted but other security mechanisms described in RFC 3711 may be used */
             bool use_null_cipher_;
 
-        private:
 
-            rtp_error_t init_srtp_context(std::shared_ptr<srtp_ctx_t> context, int type, int rce_flags,
+            rtp_error_t init_srtp_context(srtp_ctx_t& context, int type, int rce_flags,
                 uint8_t* key, uint8_t* salt);
 
             rtp_error_t derive_key(int label, size_t key_size, uint8_t *key, uint8_t *salt, uint8_t *out, size_t len);
 
-            void cleanup_context(std::shared_ptr<srtp_ctx_t> context);
+            void clear_replay_list(which_srtp_ctx which_srtp);
+            void cleanup_context(srtp_ctx_t& context);
 
+            int type_;
+            int rce_flags_;
+
+        private:
             /* Map containing all authentication tags of received packets (separate for SRTP and SRTCP)
              * Used to implement replay protection */
-            std::unordered_set<uint64_t> replay_list_;
+            std::array<std::unordered_set<uint64_t>, 2> replay_lists_;
     };
 }
 

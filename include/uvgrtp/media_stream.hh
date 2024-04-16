@@ -113,6 +113,10 @@ namespace uvgrtp {
              * \retval  RTP_NOT_SUPPORTED If user-managed SRTP was not specified in create_stream() */
             rtp_error_t add_srtp_ctx(uint8_t *key, uint8_t *salt);
 
+            rtp_error_t rekey_switch_receiving_srtp_ctx(uint8_t* key, uint8_t* salt);
+            void rekey_disable_old_srtp_ctx();
+            rtp_error_t rekey_replace_sending_srtp_ctx(uint8_t* key, uint8_t* salt);
+
             /**
              * \brief Send data to remote participant with a custom timestamp
              *

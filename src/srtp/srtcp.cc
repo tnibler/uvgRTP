@@ -2,7 +2,9 @@
 
 #include "../crypto.hh"
 #include "../debug.hh"
+#include "base.hh"
 
+#include <cassert>
 #include <cstring>
 #include <iostream>
 
@@ -97,10 +99,12 @@ rtp_error_t uvgrtp::srtcp::add_auth_tag(uint8_t *buffer, size_t len)
 rtp_error_t uvgrtp::srtcp::verify_auth_tag(uint8_t *buffer, size_t len)
 {
     uint8_t digest[10] = { 0 };
-    auto hmac_sha1     = uvgrtp::crypto::hmac::sha1(remote_srtp_ctx_->auth_key, UVG_AES_KEY_LENGTH);
+    assert(rekeying_state == OnlyZero);
+    const auto& remote_srtp_ctx = remote_srtp_ctxs_[0];
+    auto hmac_sha1     = uvgrtp::crypto::hmac::sha1(remote_srtp_ctx.auth_key, UVG_AES_KEY_LENGTH);
 
     hmac_sha1.update(buffer, len - UVG_AUTH_TAG_LENGTH);
-    hmac_sha1.update((uint8_t *)&remote_srtp_ctx_->roc, sizeof(remote_srtp_ctx_->roc));
+    hmac_sha1.update((uint8_t *)&remote_srtp_ctx.roc, sizeof(remote_srtp_ctx.roc));
     hmac_sha1.final(digest, UVG_AUTH_TAG_LENGTH);
 
     if (memcmp(digest, &buffer[len - UVG_AUTH_TAG_LENGTH], UVG_AUTH_TAG_LENGTH)) {
@@ -108,7 +112,7 @@ rtp_error_t uvgrtp::srtcp::verify_auth_tag(uint8_t *buffer, size_t len)
         return RTP_AUTH_TAG_MISMATCH;
     }
 
-    if (is_replayed_packet(digest)) {
+    if (is_replayed_packet(digest, Zero)) {
         UVG_LOG_ERROR("Replayed packet received, discarding!");
         return RTP_INVALID_VALUE;
     }
@@ -120,12 +124,14 @@ rtp_error_t uvgrtp::srtcp::decrypt(uint32_t ssrc, uint32_t seq, uint8_t *buffer,
 {
     uint8_t iv[UVG_IV_LENGTH]  = { 0 };
 
-    if (create_iv(iv, ssrc, seq, remote_srtp_ctx_->salt_key) != RTP_OK) {
+    assert(rekeying_state == OnlyZero);
+    auto& remote_srtp_ctx = remote_srtp_ctxs_[0];
+    if (create_iv(iv, ssrc, seq, remote_srtp_ctx.salt_key) != RTP_OK) {
         UVG_LOG_ERROR("Failed to create IV, unable to encrypt the RTP packet!");
         return RTP_INVALID_VALUE;
     }
 
-    uvgrtp::crypto::aes::ctr ctr(remote_srtp_ctx_->enc_key, remote_srtp_ctx_->n_e, iv);
+    uvgrtp::crypto::aes::ctr ctr(remote_srtp_ctx.enc_key, remote_srtp_ctx.n_e, iv);
 
     /* skip header and sender ssrc */
     ctr.decrypt(&buffer[8], &buffer[8], size - 8 - UVG_AUTH_TAG_LENGTH - UVG_SRTCP_INDEX_LENGTH);
