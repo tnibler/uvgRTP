@@ -1,6 +1,8 @@
 #pragma once
 
+#include "hash_uint64.hh"
 #include "uvgrtp/util.hh"
+#include <array>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -96,6 +98,9 @@ namespace uvgrtp {
         int rce_flags = 0; /* context configuration flags */
     } srtp_ctx_t;
 
+    typedef std::array<uint64_t, 2> auth_tag; /* 80 bit HMAC-SHA1 authentication tag */
+    typedef std::unordered_set<auth_tag> replay_set; /* set of all received authentication tags */
+
     class base_srtp {
 
         public:
@@ -171,7 +176,7 @@ namespace uvgrtp {
         private:
             /* Map containing all authentication tags of received packets (separate for SRTP and SRTCP)
              * Used to implement replay protection */
-            std::array<std::unordered_set<uint64_t>, 2> replay_lists_;
+            std::array<replay_set, 2> replay_lists_;
     };
 }
 

@@ -89,19 +89,19 @@ bool uvgrtp::base_srtp::is_replayed_packet(uint8_t *digest, which_srtp_ctx which
     if (!(active_srtp.rce_flags & RCE_SRTP_REPLAY_PROTECTION))
         return false;
 
-    uint64_t truncated;
-    memcpy(&truncated, digest, sizeof(uint64_t));
+    std::array<uint64_t, 2> digest_arr{};
+    std::memcpy(digest_arr.data(), digest, UVG_AUTH_TAG_LENGTH);
 
     bool is_replay = false;
     auto& replay_list = (which_srtp == Zero) ? replay_lists_[0] : replay_lists_[1];
-    is_replay = (replay_list.find(truncated) != replay_list.end());
+    is_replay = (replay_list.find(digest_arr) != replay_list.end());
 
     if (is_replay) {
         UVG_LOG_ERROR("Replayed packet received, discarding!");
         return true;
     }
 
-    replay_list.insert(truncated);
+    replay_list.insert(digest_arr);
     return false;
 }
 
