@@ -232,8 +232,13 @@ void uvgrtp::base_srtp::clear_replay_list(which_srtp_ctx which_srtp) {
 
 void uvgrtp::base_srtp::cleanup_context(srtp_ctx_t& context)
 {
-    if (context.master_key)
+    size_t key_size = get_key_size(rce_flags_);;
+    if (context.master_key) {
+        std::memset(context.master_key, 0, key_size);
         delete[] context.master_key;
-    if (context.enc_key)
+    }
+    if (context.enc_key) {
+        std::memset(context.enc_key, 0, key_size);
         delete[] context.enc_key;
+    }
 }
